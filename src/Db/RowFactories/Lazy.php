@@ -4,7 +4,7 @@ namespace Forrest79\PhPgSql\Db\RowFactories;
 
 use Forrest79\PhPgSql\Db;
 
-class Basic implements Db\RowFactory
+class Lazy implements Db\RowFactory
 {
 
 	/**
@@ -12,7 +12,7 @@ class Basic implements Db\RowFactory
 	 */
 	public function createRow(Db\Result $result, array $values): Db\Row
 	{
-		return new Db\Row($result, $values);
+		return new Db\LazyRow($result, $values);
 	}
 
 }

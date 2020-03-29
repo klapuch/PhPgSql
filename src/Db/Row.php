@@ -8,24 +8,16 @@ namespace Forrest79\PhPgSql\Db;
  */
 class Row implements \ArrayAccess, \IteratorAggregate, \Countable, \JsonSerializable
 {
-	/** @var Result */
-	private $result;
-
 	/** @var array<string, mixed> */
 	private $values;
 
-	/** @var array<string, string|NULL> */
-	private $rawValues;
-
 
 	/**
-	 * @param array<string, mixed> $rawValues
+	 * @param array<string, mixed> $values
 	 */
-	public function __construct(Result $result, array $rawValues)
+	public function __construct(array $values)
 	{
-		$this->result = $result;
-		$this->values = \array_fill_keys(\array_keys($rawValues), NULL);
-		$this->rawValues = $rawValues;
+		$this->values = $values;
 	}
 
 
@@ -35,7 +27,11 @@ class Row implements \ArrayAccess, \IteratorAggregate, \Countable, \JsonSerializ
 	 */
 	public function __get(string $column)
 	{
-		return $this->getValue($column);
+		if (!\array_key_exists($column, $this->values)) {
+			throw Exceptions\RowException::noParam($column);
+		}
+
+		return $this->values[$column];
 	}
 
 
@@ -44,19 +40,19 @@ class Row implements \ArrayAccess, \IteratorAggregate, \Countable, \JsonSerializ
 	 */
 	public function __set(string $column, $value): void
 	{
-		$this->setValue($column, $value);
+		$this->values[$column] = $value;
 	}
 
 
 	public function __isset(string $column): bool
 	{
-		return $this->hasColumn($column) && ($this->getValue($column) !== NULL);
+		return isset($this->values[$column]);
 	}
 
 
 	public function __unset(string $column): void
 	{
-		$this->removeValue($column);
+		unset($this->values[$column]);
 	}
 
 
@@ -65,10 +61,6 @@ class Row implements \ArrayAccess, \IteratorAggregate, \Countable, \JsonSerializ
 	 */
 	public function toArray(): array
 	{
-		// intentionally not using array_keys($this->rawValues) as $column - this is 2x faster
-		foreach ($this->rawValues as $column => $value) {
-			$this->parseValue($column);
-		}
 		return $this->values;
 	}
 
@@ -98,7 +90,7 @@ class Row implements \ArrayAccess, \IteratorAggregate, \Countable, \JsonSerializ
 		if (!\is_string($column)) {
 			throw Exceptions\RowException::notStringKey();
 		}
-		return $this->getValue($column);
+		return $this->__get($column);
 	}
 
 
@@ -111,20 +103,19 @@ class Row implements \ArrayAccess, \IteratorAggregate, \Countable, \JsonSerializ
 		if (!\is_string($column)) {
 			throw Exceptions\RowException::notStringKey();
 		}
-		$this->setValue($column, $value);
+		$this->__set($column, $value);
 	}
 
 
 	/**
 	 * @param mixed $column
-	 * @return bool
 	 */
 	public function offsetExists($column): bool
 	{
 		if (!\is_string($column)) {
 			throw Exceptions\RowException::notStringKey();
 		}
-		return $this->hasColumn($column) && ($this->getValue($column) !== NULL);
+		return $this->__isset($column);
 	}
 
 
@@ -136,7 +127,7 @@ class Row implements \ArrayAccess, \IteratorAggregate, \Countable, \JsonSerializ
 		if (!\is_string($column)) {
 			throw Exceptions\RowException::notStringKey();
 		}
-		$this->removeValue($column);
+		$this->__unset($column);
 	}
 
 
@@ -147,60 +138,11 @@ class Row implements \ArrayAccess, \IteratorAggregate, \Countable, \JsonSerializ
 
 
 	/**
-	 * @return mixed
-	 * @throws Exceptions\RowException
-	 */
-	private function getValue(string $column)
-	{
-		if (!\array_key_exists($column, $this->values)) {
-			throw Exceptions\RowException::noColumn($column);
-		}
-
-		if (\array_key_exists($column, $this->rawValues)) {
-			$this->parseValue($column);
-		}
-
-		return $this->values[$column];
-	}
-
-
-	private function parseValue(string $column): void
-	{
-		$this->values[$column] = $this->result->parseColumnValue($column, $this->rawValues[$column]);
-		unset($this->rawValues[$column]);
-	}
-
-
-	/**
-	 * @param mixed $value
-	 * @return void
-	 */
-	private function setValue(string $column, $value): void
-	{
-		$this->values[$column] = $value;
-		unset($this->rawValues[$column]);
-	}
-
-
-	private function removeValue(string $column): void
-	{
-		unset($this->rawValues[$column]);
-		unset($this->values[$column]);
-	}
-
-
-	/**
 	 * @return array<string, mixed>
 	 */
 	public function jsonSerialize(): array
 	{
 		return $this->toArray();
-	}
-
-
-	public function getResult(): Result
-	{
-		return $this->result;
 	}
 
 }

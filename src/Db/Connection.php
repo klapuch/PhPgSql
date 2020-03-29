@@ -247,7 +247,7 @@ class Connection
 	private function getDefaultRowFactory(): RowFactory
 	{
 		if ($this->defaultRowFactory === NULL) {
-			$this->defaultRowFactory = new RowFactories\Basic();
+			$this->defaultRowFactory = new RowFactories\Lazy();
 		}
 
 		return $this->defaultRowFactory;
